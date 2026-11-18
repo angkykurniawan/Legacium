@@ -1,0 +1,16 @@
+# ============================================================
+# LEGACIUM — Keamanan InfinityFree (Apache .htaccess)
+# Memblokir akses browser publik ke file .env, .sql, dan file tersembunyi
+# ============================================================
+
+Options -Indexes
+
+<FilesMatch "^\.env">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "\.(sql|sol|md|log|bak|example)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>

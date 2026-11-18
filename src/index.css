@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    color: #0F242D;
+    background: linear-gradient(180deg, #EDF8FC 0%, #E7F6F5 55%, #D9F1EA 100%);
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .neo-card {
+    @apply border-[2.5px] border-[#0F242D] rounded-[22px] shadow-neo bg-white;
+  }
+
+  .neo-pill {
+    @apply border-[2.5px] border-[#0F242D] rounded-full shadow-neo bg-white;
+  }
+
+  .neo-btn {
+    @apply border-[2px] border-[#0F242D] rounded-xl font-bold transition-transform duration-100 active:translate-y-[2px];
+    box-shadow: 0 3px 0 #0F242D;
+  }
+
+  .neo-btn:active {
+    box-shadow: 0 1px 0 #0F242D;
+  }
+
+  .neo-btn-dark {
+    @apply bg-[#0F242D] text-white rounded-xl font-bold px-5 py-2.5 inline-flex items-center gap-2 transition-transform duration-100 active:scale-95;
+  }
+
+  .neo-tile {
+    @apply border-[2.5px] border-[#0F242D] rounded-[20px] transition-transform duration-150 active:translate-y-[2px];
+    box-shadow: 0 4px 0 #0F242D;
+  }
+
+  .neo-tile:active {
+    box-shadow: 0 1.5px 0 #0F242D;
+  }
+
+  .neo-input {
+    @apply w-full border-[2px] border-[#0F242D] rounded-xl px-3.5 py-2.5 bg-white text-[#0F242D] font-semibold placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#F7C948];
+  }
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 36, 45, 0.2);
+  border-radius: 999px;
+}

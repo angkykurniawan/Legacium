@@ -1,0 +1,23 @@
+{
+  "name": "Legacium — Kota Riset & Gema Memori 3D Tokoh Dunia",
+  "short_name": "Legacium",
+  "description": "Game kolaborasi riset lintas disiplin STEAM bersama gema memori 3D tokoh dunia berbasis Google Gemini AI.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#EEF8FA",
+  "theme_color": "#0F242D",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./logo-legacium.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

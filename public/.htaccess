@@ -1,0 +1,16 @@
+# ============================================================
+# LEGACIUM — Keamanan InfinityFree (Apache .htaccess)
+# Otomatis ikut tersalin ke folder dist/ saat npm run build
+# ============================================================
+
+Options -Indexes
+
+<FilesMatch "^\.env">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "\.(sql|sol|md|log|bak|example)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
