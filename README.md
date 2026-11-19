@@ -8,15 +8,19 @@ Game kolaborasi riset lintas disiplin STEAM (Fisika, Kimia, Biologi, Arsitektur,
 - **Database:** MySQL (InfinityFree) via file `.env` — skema siap import di `database/schema.sql`
 - **AI Mentor & Kurasi Tokoh:** Google AI Studio (Gemini API) dengan pengambilan daftar model dinamis & pengaturan token khusus role **Admin**
 
-## 2 Role Bawaan (Pendaftaran User Khusus Admin)
+## 2 Role Bawaan (1 Akun per Role)
 - **Admin (`admin@legacium.app` / `admin123`):**
   - Mengatur & mengganti **API Key Google AI Studio**, memuat daftar model yang tersedia, dan memilih model aktif.
-  - Menambah, menyunting, dan men-generate data tokoh zaman dulu via Gemini AI.
+  - Menambah bidang riset baru (otomatis memunculkan paviliun gedung 3D baru di pulau kota riset).
+  - Menambah, menyunting, dan merekomendasikan data tokoh zaman dulu via Gemini AI.
   - Mendaftarkan akun User baru (role default `user`) dan membuat World Quest baru.
-- **User (`guruh@legacium.app` / `user123`):**
+- **User (`user@legacium.app` / `user123`):**
+  - Berkeliling bebas di **Open World 3D** (WASD, lari, lompat, mini-map, paviliun riset STEAM, NPC interaktif).
   - Bercakap langsung dengan karakter 3D tokoh dunia & menyimpan catatan memori kolaborasi.
   - Menjalankan **Meja Bundar Lintas Era (2–4 tokoh berbeda)** untuk menghasilkan Blueprint Sintesis STEAM.
   - Berkontribusi pada **World Quest** untuk membuka era baru di **Pohon Sejarah (Tech Tree)** kolektif.
+
+> **Catatan Demo:** Tampilan login tidak membocorkan akun bawaan. Untuk permintaan akun demo, hubungi: `kurniawan.angang2005@gmail.com`.
 
 ## Menjalankan Lokal (Development)
 ```bash

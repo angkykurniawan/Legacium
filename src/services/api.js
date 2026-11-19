@@ -58,8 +58,8 @@ function createInitialLocalDb() {
       },
       {
         id: 2,
-        name: 'Guruh',
-        email: 'guruh@legacium.app',
+        name: 'Guruh (Peneliti)',
+        email: 'user@legacium.app',
         password: 'user123',
         role: 'user',
         specialty_field: 'kimia',
@@ -432,8 +432,13 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ email, password }) },
       async () => {
         const db = loadLocalDb();
+        const normEmail = email.trim().toLowerCase();
         const found = db.users.find(
-          (u) => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password
+          (u) =>
+            (u.email.toLowerCase() === normEmail ||
+              (normEmail === 'user@legacium.app' && u.email.toLowerCase() === 'guruh@legacium.app') ||
+              (normEmail === 'guruh@legacium.app' && u.email.toLowerCase() === 'user@legacium.app')) &&
+            u.password === password
         );
         if (!found) throw new Error('Email atau password salah.');
         const token = `local_${Math.random().toString(36).slice(2)}_${Date.now()}`;

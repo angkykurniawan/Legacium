@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import {
-  ShieldCheck,
-  User,
   ArrowRight,
   Lock,
   Users,
   Sparkles,
   GitBranch,
-  BookmarkCheck
+  BookmarkCheck,
+  Mail,
+  Copy,
+  Check
 } from 'lucide-react';
 import { api, setStoredToken } from '../services/api.js';
 import { SceneryBg } from './SceneryBg.jsx';
@@ -18,6 +19,9 @@ export function AuthScreen({ onSuccess }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const DEMO_EMAIL = 'kurniawan.angang2005@gmail.com';
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -34,14 +38,11 @@ export function AuthScreen({ onSuccess }) {
     }
   }
 
-  function quickFill(role) {
-    setError('');
-    if (role === 'admin') {
-      setEmail('admin@legacium.app');
-      setPassword('admin123');
-    } else {
-      setEmail('guruh@legacium.app');
-      setPassword('user123');
+  function handleCopyEmail() {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(DEMO_EMAIL);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
     }
   }
 
@@ -171,31 +172,46 @@ export function AuthScreen({ onSuccess }) {
             </div>
 
             <div className="mt-4 pt-4 border-t-2 border-dashed border-slate-200">
-              <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 mb-2.5 text-center">
-                Akun Default Bawaan (2 Role)
-              </p>
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => quickFill('admin')}
-                  className="neo-btn bg-[#F7C948] px-3 py-2 text-xs flex items-center justify-center gap-1.5"
-                >
-                  <ShieldCheck size={15} />
-                  <span>Admin Default</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => quickFill('user')}
-                  className="neo-btn bg-[#9AD1F5] px-3 py-2 text-xs flex items-center justify-center gap-1.5"
-                >
-                  <User size={15} />
-                  <span>User Default</span>
-                </button>
+              <div className="p-3.5 rounded-2xl bg-[#FEF3C7] border-[2px] border-[#0F242D] space-y-2.5">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#F7C948] border-[2px] border-[#0F242D] flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                    <Mail size={16} className="text-[#0F242D]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-700">
+                      Akses Akun Demo
+                    </p>
+                    <p className="text-xs font-bold text-[#0F242D] leading-snug mt-0.5">
+                      Untuk demo minta akun ke{' '}
+                      <a
+                        href={`mailto:${DEMO_EMAIL}?subject=Permintaan%20Akun%20Demo%20Legacium`}
+                        className="font-extrabold text-[#0E6BA8] underline hover:text-[#094770] break-all"
+                      >
+                        {DEMO_EMAIL}
+                      </a>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-0.5">
+                  <a
+                    href={`mailto:${DEMO_EMAIL}?subject=Permintaan%20Akun%20Demo%20Legacium`}
+                    className="flex-1 neo-btn bg-white py-1.5 px-3 text-xs font-bold text-center justify-center flex items-center gap-1.5 hover:bg-slate-50 transition-colors"
+                  >
+                    <Mail size={13} />
+                    <span>Kirim Email</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={handleCopyEmail}
+                    className="neo-btn bg-white py-1.5 px-3 text-xs font-bold flex items-center gap-1.5 hover:bg-slate-50 transition-colors"
+                    title="Salin alamat email demo"
+                  >
+                    {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                    <span>{copied ? 'Tersalin!' : 'Salin Email'}</span>
+                  </button>
+                </div>
               </div>
-              <p className="text-[11px] text-slate-500 mt-2 text-center leading-relaxed">
-                <strong>Admin</strong> mengatur token Gemini, model, tokoh, &amp; mendaftarkan user.{' '}
-                <strong>User</strong> bercakap dengan tokoh 3D &amp; mengikuti World Quest.
-              </p>
             </div>
           </div>
         </div>

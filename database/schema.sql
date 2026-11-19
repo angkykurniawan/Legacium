@@ -187,14 +187,14 @@ CREATE TABLE IF NOT EXISTS `roundtable_sessions` (
 -- SEED DATA AWAL (IDEMPOTEN — AMAN DI-IMPORT ULANG)
 -- ============================================================
 
--- Akun Default (password otomatis di-upgrade ke bcrypt saat login pertama)
--- Admin Default : admin@legacium.app | Password: admin123
--- User Default  : guruh@legacium.app | Password: user123
+-- Akun Default (1 akun per role; password otomatis di-upgrade ke bcrypt saat login pertama)
+-- 1. Role Admin : admin@legacium.app | Password: admin123
+-- 2. Role User  : user@legacium.app  | Password: user123
 INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `role`, `specialty_field`, `city_name`, `city_level`, `research_points`)
 VALUES
   (1, 'Admin Kurator', 'admin@legacium.app', 'SEED_PLAIN:admin123', 'admin', 'fisika', 'Menara Arsip Pusat', 5, 950),
-  (2, 'Guruh', 'guruh@legacium.app', 'SEED_PLAIN:user123', 'user', 'kimia', 'Kota Lab Nusantara', 2, 240)
-ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
+  (2, 'Peneliti Legacium', 'user@legacium.app', 'SEED_PLAIN:user123', 'user', 'kimia', 'Kota Lab Nusantara', 2, 240)
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `email` = VALUES(`email`);
 
 -- Pengaturan Default Aplikasi
 INSERT INTO `app_settings` (`setting_key`, `setting_value`, `is_encrypted`)

@@ -44,6 +44,13 @@ if ($action === 'login' && $method === 'POST') {
     $stmt->execute([$email]);
     $row = $stmt->fetch();
 
+    if (!$row && ($email === 'user@legacium.app' || $email === 'guruh@legacium.app')) {
+        $altEmail = ($email === 'user@legacium.app') ? 'guruh@legacium.app' : 'user@legacium.app';
+        $stmt = $pdo->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
+        $stmt->execute([$altEmail]);
+        $row = $stmt->fetch();
+    }
+
     if (!$row) {
         json_response(['ok' => false, 'error' => 'Email atau password salah.'], 401);
     }
