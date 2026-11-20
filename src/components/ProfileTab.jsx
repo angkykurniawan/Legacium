@@ -101,10 +101,7 @@ export function ProfileTab({
             <div className="flex items-center gap-2 text-xs font-bold">
               <Database size={16} />
               <span>
-                Mode Data:{' '}
-                <strong>
-                  {backendMode === 'php' ? 'MySQL InfinityFree (PHP API)' : 'Preview Lokal (Browser)'}
-                </strong>
+                Engine Sistem: <strong>Pure JavaScript (Client-Side &amp; Gemini AI)</strong>
               </span>
             </div>
           </div>

@@ -32,7 +32,14 @@ export function AuthScreen({ onSuccess }) {
       setStoredToken(res.token);
       onSuccess(res.user);
     } catch (err) {
-      setError(err.message || 'Gagal masuk.');
+      const rawMsg = err?.message || err?.error || err;
+      let displayMsg = 'Gagal masuk.';
+      if (typeof rawMsg === 'string' && rawMsg !== '[object Object]') {
+        displayMsg = rawMsg;
+      } else if (typeof rawMsg === 'object' && rawMsg !== null) {
+        displayMsg = rawMsg.message || rawMsg.error || JSON.stringify(rawMsg);
+      }
+      setError(displayMsg);
     } finally {
       setLoading(false);
     }

@@ -8,11 +8,10 @@
 
 import { DEFAULT_RESEARCH_FIELDS, normalizeField } from '../data/fields.js';
 
-const API_BASE = import.meta.env.VITE_API_BASE || './api';
 const TOKEN_KEY = 'legacium_auth_token';
 const LOCAL_DB_KEY = 'legacium_local_preview_db_v2';
 
-let backendMode = 'detecting'; // 'php' | 'local_preview'
+let backendMode = 'pure_js'; // 100% Pure JavaScript (LocalStorage & Direct Gemini API)
 
 export function getBackendMode() {
   return backendMode;
@@ -273,16 +272,30 @@ function createInitialLocalDb() {
 }
 
 function loadLocalDb() {
+  const init = createInitialLocalDb();
   try {
     const raw = localStorage.getItem(LOCAL_DB_KEY);
     if (!raw) {
-      const init = createInitialLocalDb();
       localStorage.setItem(LOCAL_DB_KEY, JSON.stringify(init));
       return init;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.users) || parsed.users.length === 0) {
+      localStorage.setItem(LOCAL_DB_KEY, JSON.stringify(init));
+      return init;
+    }
+    return {
+      settings: { ...init.settings, ...(parsed.settings || {}) },
+      users: parsed.users,
+      sessions: parsed.sessions || {},
+      mentors: Array.isArray(parsed.mentors) && parsed.mentors.length > 0 ? parsed.mentors : init.mentors,
+      quests: Array.isArray(parsed.quests) && parsed.quests.length > 0 ? parsed.quests : init.quests,
+      contributions: Array.isArray(parsed.contributions) ? parsed.contributions : init.contributions,
+      tech_tree_nodes: Array.isArray(parsed.tech_tree_nodes) && parsed.tech_tree_nodes.length > 0 ? parsed.tech_tree_nodes : init.tech_tree_nodes,
+      chat_messages: Array.isArray(parsed.chat_messages) ? parsed.chat_messages : [],
+      mentor_memories: Array.isArray(parsed.mentor_memories) ? parsed.mentor_memories : []
+    };
   } catch {
-    const init = createInitialLocalDb();
     localStorage.setItem(LOCAL_DB_KEY, JSON.stringify(init));
     return init;
   }
@@ -303,7 +316,7 @@ function getLocalCurrentUser(db) {
   return safeUser;
 }
 
-// Direct Google AI Studio call (digunakan HANYA saat Mode Preview Lokal tanpa server PHP)
+// Direct Google AI Studio call (Pure JavaScript)
 async function directFetchGeminiModels(apiKey) {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
@@ -355,70 +368,11 @@ async function directCallGemini(apiKey, modelId, systemInstruction, contents, js
   return text;
 }
 
-function isLocalDevHost() {
-  if (typeof window === 'undefined') return false;
-  const host = window.location.hostname;
-  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
-}
-
 // ============================================================
-// CORE REQUEST WRAPPER (PHP MySQL dulu, fallback Preview Lokal)
+// CORE API WRAPPER (100% PURE JAVASCRIPT - ZERO PHP/ZERO MYSQL)
 // ============================================================
-async function requestPhp(endpoint, options = {}) {
-  const token = getStoredToken();
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers || {})
-  };
-
-  const res = await fetch(`${API_BASE}/${endpoint}`, {
-    ...options,
-    headers
-  });
-
-  const text = await res.text();
-  const trimmed = (text || '').trim();
-
-  // Jika respons kosong (misal Vite proxy ke localhost:8000 mati) atau HTML SPA fallback
-  if (trimmed === '' || trimmed.startsWith('<')) {
-    if (isLocalDevHost()) {
-      throw new Error('PHP_UNAVAILABLE');
-    }
-    throw new Error(
-      `Server API tidak mengembalikan JSON (HTTP ${res.status}). Pastikan folder api/ dan file .env sudah terupload dengan benar di hosting.`
-    );
-  }
-
-  let data;
-  try {
-    data = JSON.parse(trimmed);
-  } catch {
-    if (isLocalDevHost()) {
-      throw new Error('PHP_UNAVAILABLE');
-    }
-    throw new Error(`Respons server tidak valid (HTTP ${res.status}). Cek log PHP / file .env.`);
-  }
-
-  if (!res.ok || data.ok === false) {
-    throw new Error(data.error || `HTTP ${res.status}`);
-  }
-  backendMode = 'php';
-  return data;
-}
-
 async function callApi(endpoint, options, localHandler) {
-  if (backendMode !== 'local_preview') {
-    try {
-      return await requestPhp(endpoint, options);
-    } catch (err) {
-      if (err.message === 'PHP_UNAVAILABLE' || err.name === 'TypeError') {
-        backendMode = 'local_preview';
-      } else {
-        throw err;
-      }
-    }
-  }
+  // Semua request langsung ditangani oleh engine JavaScript murni + localStorage
   return await localHandler();
 }
 
