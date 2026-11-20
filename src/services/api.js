@@ -348,8 +348,8 @@ async function directCallGemini(apiKey, modelId, systemInstruction, contents, js
     system_instruction: { parts: [{ text: systemInstruction }] },
     contents,
     generationConfig: {
-      temperature: jsonMode ? 0.4 : 0.75,
-      maxOutputTokens: 1024,
+      temperature: jsonMode ? 0.3 : 0.7,
+      maxOutputTokens: 4096,
       ...(jsonMode ? { responseMimeType: 'application/json' } : {})
     }
   };
@@ -361,11 +361,161 @@ async function directCallGemini(apiKey, modelId, systemInstruction, contents, js
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data?.error?.message || `Google AI Studio HTTP ${res.status}`);
+    const errorMsg = data?.error?.message || `Google AI Studio HTTP ${res.status}`;
+    throw new Error(errorMsg);
   }
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
   if (!text) throw new Error('Model tidak mengembalikan teks jawaban.');
   return text;
+}
+
+/**
+ * Parser JSON tangguh (Fault-Tolerant JSON Parser) untuk respons AI:
+ * - Menghilangkan markdown code fences (```json ... ```)
+ * - Memperbaiki unescaped quotes & newlines
+ * - Memperbaiki JSON terpotong (auto-close string/brackets/braces)
+ * - Regex extractor fallback jika parsing JSON standar tetap gagal
+ */
+function robustParseJson(raw, fallback = {}) {
+  if (!raw || typeof raw !== 'string') return fallback;
+
+  // 1. Bersihkan markdown fences
+  let clean = raw.trim();
+  clean = clean.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+
+  // 2. Ambil substring dari { pertama sampai } terakhir, atau [ sampai ]
+  const firstBrace = clean.indexOf('{');
+  const firstBracket = clean.indexOf('[');
+  if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    const lastBrace = clean.lastIndexOf('}');
+    if (lastBrace !== -1 && lastBrace > firstBrace) {
+      clean = clean.substring(firstBrace, lastBrace + 1);
+    } else {
+      clean = clean.substring(firstBrace);
+    }
+  } else if (firstBracket !== -1) {
+    const lastBracket = clean.lastIndexOf(']');
+    if (lastBracket !== -1 && lastBracket > firstBracket) {
+      clean = clean.substring(firstBracket, lastBracket + 1);
+    } else {
+      clean = clean.substring(firstBracket);
+    }
+  }
+
+  // 3. Coba parse langsung
+  try {
+    return JSON.parse(clean);
+  } catch {
+    // lanjut perbaikan
+  }
+
+  // 4. Perbaikan trailing commas
+  let repaired = clean.replace(/,\s*([\]}])/g, '$1');
+
+  // 5. Perbaikan unclosed quotes & unclosed brackets/braces (jika output terpotong)
+  try {
+    let inString = false;
+    let escaped = false;
+    let openBraces = 0;
+    let openBrackets = 0;
+    for (let i = 0; i < repaired.length; i++) {
+      const char = repaired[i];
+      if (char === '\\' && !escaped) {
+        escaped = true;
+        continue;
+      }
+      if (char === '"' && !escaped) {
+        inString = !inString;
+      } else if (!inString) {
+        if (char === '{') openBraces++;
+        else if (char === '}') openBraces = Math.max(0, openBraces - 1);
+        else if (char === '[') openBrackets++;
+        else if (char === ']') openBrackets = Math.max(0, openBrackets - 1);
+      }
+      escaped = false;
+    }
+
+    let closed = repaired;
+    if (inString) closed += '"';
+    while (openBrackets > 0) {
+      closed += ']';
+      openBrackets--;
+    }
+    while (openBraces > 0) {
+      closed += '}';
+      openBraces--;
+    }
+    return JSON.parse(closed);
+  } catch {
+    // lanjut regex fallback
+  }
+
+  // 6. Regex Fallback: Ekstraksi toleran untuk Meja Bundar & Mentor
+  try {
+    const result = { ...fallback };
+
+    // Ekstrak replies: {"mentor_id": X, "reply": "..."}
+    const replyRegex = /\{\s*["']?mentor_id["']?\s*:\s*(\d+)[\s\S]*?["']?reply["']?\s*:\s*["']([\s\S]*?)(?:["']\s*\}|["']\s*,|$)/gi;
+    const replies = [];
+    let rMatch;
+    while ((rMatch = replyRegex.exec(clean)) !== null) {
+      replies.push({
+        mentor_id: parseInt(rMatch[1], 10),
+        reply: rMatch[2].replace(/\\"/g, '"').replace(/\\n/g, ' ').trim()
+      });
+    }
+    if (replies.length > 0) {
+      result.replies = replies;
+    }
+
+    // Ekstrak synthesis_title
+    const titleMatch = clean.match(/["']?synthesis_title["']?\s*:\s*["']([^"'\n\r]+)["']/i);
+    if (titleMatch) result.synthesis_title = titleMatch[1].trim();
+
+    // Ekstrak synthesis_summary
+    const summaryMatch = clean.match(/["']?synthesis_summary["']?\s*:\s*["']([\s\S]*?)(?:["']\s*\}|["']\s*,|$)/i);
+    if (summaryMatch) result.synthesis_summary = summaryMatch[1].replace(/\\"/g, '"').replace(/\\n/g, ' ').trim();
+
+    // Ekstrak rekomendasi
+    const recRegex = /\{\s*["']?name["']?\s*:\s*["']([^"']+)["'][\s\S]*?["']?field["']?\s*:\s*["']([^"']+)["'][\s\S]*?["']?era["']?\s*:\s*["']([^"']+)["'][\s\S]*?["']?specialty["']?\s*:\s*["']([^"']+)["']/gi;
+    const recs = [];
+    let recMatch;
+    while ((recMatch = recRegex.exec(clean)) !== null) {
+      recs.push({
+        name: recMatch[1],
+        field: recMatch[2],
+        era: recMatch[3],
+        specialty: recMatch[4]
+      });
+    }
+    if (recs.length > 0) {
+      result.recommendations = recs;
+    }
+
+    // Ekstrak profil mentor tunggal
+    const nameMatch = clean.match(/["']?name["']?\s*:\s*["']([^"']+)["']/i);
+    if (nameMatch) result.name = nameMatch[1];
+    const eraMatch = clean.match(/["']?era["']?\s*:\s*["']([^"']+)["']/i);
+    if (eraMatch) result.era = eraMatch[1];
+    const specMatch = clean.match(/["']?specialty["']?\s*:\s*["']([^"']+)["']/i);
+    if (specMatch) result.specialty = specMatch[1];
+    const bioMatch = clean.match(/["']?biography["']?\s*:\s*["']([\s\S]*?)(?:["']\s*,\s*["']|["']\s*\})/i);
+    if (bioMatch) result.biography = bioMatch[1].replace(/\\"/g, '"').trim();
+    const quoteMatch = clean.match(/["']?signature_quote["']?\s*:\s*["']([\s\S]*?)(?:["']\s*,\s*["']|["']\s*\})/i);
+    if (quoteMatch) result.signature_quote = quoteMatch[1].replace(/\\"/g, '"').trim();
+    const personaMatch = clean.match(/["']?persona_prompt["']?\s*:\s*["']([\s\S]*?)(?:["']\s*,\s*["']|["']\s*\})/i);
+    if (personaMatch) result.persona_prompt = personaMatch[1].replace(/\\"/g, '"').trim();
+    const bonusMatch = clean.match(/["']?research_bonus["']?\s*:\s*["']([^"']+)["']/i);
+    if (bonusMatch) result.research_bonus = bonusMatch[1];
+
+    if (result.replies || result.recommendations || result.name || result.synthesis_title) {
+      return result;
+    }
+  } catch {
+    // fallback
+  }
+
+  return fallback;
 }
 
 // ============================================================
@@ -724,8 +874,7 @@ Format JSON wajib:
           [{ role: 'user', parts: [{ text: userPrompt }] }],
           true
         );
-        const match = raw.match(/\{[\s\S]*\}/);
-        const parsed = JSON.parse(match ? match[0] : raw);
+        const parsed = robustParseJson(raw, { recommendations: [] });
         return {
           ok: true,
           recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
@@ -748,7 +897,7 @@ Format JSON wajib:
         if (!apiKey) throw new Error('API Key Google AI Studio belum diatur oleh Admin.');
 
         const systemPrompt =
-          'Kamu adalah kurator sejarah sains untuk game Legacium. Kembalikan HANYA JSON valid berbahasa Indonesia tanpa markdown fence.';
+          'Kamu adalah kurator sejarah sains untuk game Legacium. Kembalikan HANYA JSON valid berbahasa Indonesia tanpa markdown fence. Gunakan petik tunggal jika mengutip istilah.';
         const hintLine = description_hint?.trim()
           ? `\nCatatan/deskripsi awal dari Admin yang wajib dipertimbangkan: ${description_hint.trim()}`
           : '';
@@ -763,8 +912,15 @@ Format JSON wajib dengan key:
           [{ role: 'user', parts: [{ text: userPrompt }] }],
           true
         );
-        const match = raw.match(/\{[\s\S]*\}/);
-        const parsed = JSON.parse(match ? match[0] : raw);
+        const parsed = robustParseJson(raw, {
+          name,
+          era: 'Era Sejarah',
+          specialty: field,
+          biography: `Tokoh bersejarah dalam bidang riset ${field}.`,
+          signature_quote: 'Pengetahuan adalah warisan abadi kemanusiaan.',
+          persona_prompt: `Kamu adalah gema memori ${name}. Berbicaralah edukatif dan hangat.`,
+          research_bonus: '+15% Efisiensi Riset'
+        });
         const colorMap = {
           fisika: '#0E6BA8',
           kimia: '#3CC9B8',
@@ -930,6 +1086,18 @@ ${quest_context ? `4. Konteks World Quest aktif: ${quest_context}\n` : ''}5. Jaw
           { role: 'user', parts: [{ text: message }] }
         ]);
 
+        let cleanReply = (reply || '').trim();
+        // Bersihkan jika model mengembalikan format JSON atau markdown codeblock
+        if (cleanReply.startsWith('{') && cleanReply.endsWith('}')) {
+          try {
+            const p = JSON.parse(cleanReply);
+            cleanReply = p.reply || p.message || p.text || cleanReply;
+          } catch {
+            // abaikan
+          }
+        }
+        cleanReply = cleanReply.replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/i, '').trim();
+
         db.chat_messages.push(
           {
             id: Date.now(),
@@ -944,7 +1112,7 @@ ${quest_context ? `4. Konteks World Quest aktif: ${quest_context}\n` : ''}5. Jaw
             user_id: curr.id,
             mentor_id: Number(mentor_id),
             sender: 'mentor',
-            message: reply,
+            message: cleanReply,
             model_used: model,
             created_at: new Date().toISOString()
           }
@@ -953,7 +1121,7 @@ ${quest_context ? `4. Konteks World Quest aktif: ${quest_context}\n` : ''}5. Jaw
         const targetUser = db.users.find((u) => u.id === curr.id);
         if (targetUser) targetUser.research_points += 5;
         saveLocalDb(db);
-        return { ok: true, mentor_name: mentor.name, reply, model_used: model };
+        return { ok: true, mentor_name: mentor.name, reply: cleanReply, model_used: model };
       }
     );
   },
@@ -1067,7 +1235,7 @@ ${quest_context ? `4. Konteks World Quest aktif: ${quest_context}\n` : ''}5. Jaw
           .join('\n');
 
         const systemPrompt =
-          'Kamu adalah sutradara simulasi Meja Bundar Lintas Era untuk game STEAM Legacium. Kembalikan HANYA JSON valid berbahasa Indonesia tanpa markdown fence.';
+          'Kamu adalah sutradara simulasi Meja Bundar Lintas Era untuk game STEAM Legacium. Kembalikan HANYA format JSON valid berbahasa Indonesia tanpa markdown fence. PENTING: Gunakan tanda petik tunggal (\') jika ingin mengutip istilah di dalam teks agar tidak merusak format JSON.';
         const userPrompt = `Peneliti bernama ${curr.name} dari ${curr.city_name} mengajukan tantangan lintas disiplin:
 "${topic}"
 ${quest ? `Konteks World Quest: ${quest.title} (${quest.description})\n` : ''}
@@ -1091,8 +1259,11 @@ Format JSON wajib:
           [{ role: 'user', parts: [{ text: userPrompt }] }],
           true
         );
-        const match = raw.match(/\{[\s\S]*\}/);
-        const parsed = JSON.parse(match ? match[0] : raw);
+        const parsed = robustParseJson(raw, {
+          replies: [],
+          synthesis_title: `Sintesis ${orderedMentors.map((m) => m.name).join(' × ')}`,
+          synthesis_summary: `Kolaborasi multidisiplin antara ${orderedMentors.map((m) => m.name).join(', ')} untuk menyelesaikan tantangan riset ini.`
+        });
 
         const participants = orderedMentors.map((m) => ({
           id: m.id,
@@ -1108,7 +1279,7 @@ Format JSON wajib:
             mentor_id: m.id,
             mentor_name: m.name,
             field: m.field,
-            reply: hit?.reply || 'Mari kita padukan keahlian lintas disiplin kita!'
+            reply: hit?.reply || `Dari perspektif ${m.field} (${m.specialty}), kita dapat menyatukan gagasan era ${m.era} dengan bidang rekan sekalian demi memecahkan masalah ini.`
           };
         });
 

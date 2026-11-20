@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import {
   ArrowRight,
-  Lock,
   Users,
   Sparkles,
   GitBranch,
   BookmarkCheck,
   Mail,
   Copy,
-  Check
+  Check,
+  AlertTriangle
 } from 'lucide-react';
 import { api, setStoredToken } from '../services/api.js';
 import { SceneryBg } from './SceneryBg.jsx';
@@ -169,13 +169,16 @@ export function AuthScreen({ onSuccess }) {
               </button>
             </form>
 
-            <div className="mt-4 p-3 rounded-2xl bg-[#EEF8FA] border-[2px] border-[#0F242D] flex items-start gap-2">
-              <Lock size={15} className="shrink-0 mt-0.5 text-[#0E6BA8]" />
-              <p className="text-[11px] font-semibold text-[#0F242D] leading-snug">
-                <strong>Pendaftaran Terkendali:</strong> User tidak dapat mendaftar sendiri. Akun
-                baru (role default <strong>User</strong>) didaftarkan melalui{' '}
-                <strong>Panel Admin</strong>.
-              </p>
+            <div className="mt-4 p-3 rounded-2xl bg-[#FFFBEB] border-[2px] border-[#0F242D] flex items-start gap-2.5">
+              <AlertTriangle size={16} className="shrink-0 mt-0.5 text-amber-600" />
+              <div className="text-[11px] leading-snug text-[#0F242D]">
+                <p className="font-extrabold uppercase tracking-wide text-amber-900 text-[10px]">
+                  Pemberitahuan Kecerdasan Buatan (AI)
+                </p>
+                <p className="font-semibold text-slate-700 mt-0.5">
+                  Percakapan dan sintesis di platform ini dilakukan dengan menggunakan AI, sehingga terdapat kemungkinan melakukan kesalahan. Harap <strong>verifikasi kembali hasilnya</strong>. Terima kasih.
+                </p>
+              </div>
             </div>
 
             <div className="mt-4 pt-4 border-t-2 border-dashed border-slate-200">
